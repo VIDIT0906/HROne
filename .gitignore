@@ -1,0 +1,6 @@
+DATA_MODEL.md
+openapi.yaml
+PROBLEM_STATEMENT.docx
+sample_data/
+.venv/
+.env
