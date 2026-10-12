@@ -4,3 +4,6 @@ PROBLEM_STATEMENT.docx
 sample_data/
 .venv/
 .env
+attendance_api_submission/
+attendance_api_submission.zip
+__pycache__
