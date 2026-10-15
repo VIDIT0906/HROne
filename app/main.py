@@ -40,9 +40,9 @@ IST = timezone(timedelta(hours=5, minutes=30))
 EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 PRESENCE = ("PRESENT", "WFH", "ON_DUTY")  # R6
-GRACE_SECONDS = 10 * 60  # R2
-MIN_OVERTIME_MINUTES = 30  # R3
-HALF_DAY_HUNDREDTHS = 450  # R5 (4.50 h, compared on the rounded value)
+GRACE_SECONDS = 10 * 60
+MIN_OVERTIME_MINUTES = 30
+HALF_DAY_HUNDREDTHS = 450
 MAX_SHIFT_SPAN = timedelta(hours=24)
 
 # --------------------------------------------------------------------------- #
@@ -69,7 +69,7 @@ def ensure_indexes() -> None:
     db.attendance_logs.create_index(
         [("date", DESCENDING), ("emp_code", ASCENDING), ("late_minutes", ASCENDING)], name="date_emp_late"
     )
-    try:  # stage-1 index, now a strict prefix of date_emp_late
+    try:
         db.attendance_logs.drop_index("date_desc_emp")
     except OperationFailure:
         pass
@@ -83,7 +83,7 @@ def ensure_indexes() -> None:
 async def lifespan(_: FastAPI):
     try:
         ensure_indexes()
-    except PyMongoError as exc:  # keep the app up; /health reports 503 and retries
+    except PyMongoError as exc:
         log.warning("index creation deferred: %s", exc)
     yield
 
@@ -222,7 +222,7 @@ class EmployeeIn(BaseModel):
     @field_validator("joined_on")
     @classmethod
     def _real_date(cls, v: str) -> str:
-        Date.fromisoformat(v)  # ValueError -> 422
+        Date.fromisoformat(v)
         return v
 
     @model_validator(mode="after")
@@ -233,22 +233,22 @@ class EmployeeIn(BaseModel):
 
 
 # Optional fields below are typed non-nullable with a None default on purpose:
-# omitted -> None, but an explicit JSON null is rejected (the contract is not nullable).
+# omitted -> None, but an explicit JSON null is rejected.
 class PunchInIn(BaseModel):
     emp_code: str
-    punched_at: EpochMs = None  # type: ignore[assignment]
+    punched_at: EpochMs = None
     status: PresenceStatus = "PRESENT"
 
 
 class PunchOutIn(BaseModel):
     emp_code: str
-    punched_at: EpochMs = None  # type: ignore[assignment]
+    punched_at: EpochMs = None
 
 
 class RegularizeIn(BaseModel):
-    status: Status = None  # type: ignore[assignment]
-    punch_in: EpochMs = None  # type: ignore[assignment]
-    punch_out: EpochMs = None  # type: ignore[assignment]
+    status: Status = None
+    punch_in: EpochMs = None
+    punch_out: EpochMs = None
     reason: str = Field(min_length=5, max_length=200)
     regularized_by: str = Field(min_length=1, max_length=50)
 
@@ -327,7 +327,7 @@ def create_employee(body: EmployeeIn):
     doc = body.model_dump()
     doc["created_at"] = now_utc()
     try:
-        db.employees.insert_one(doc)  # uniqueness enforced by uq_emp_code, not by a prior find
+        db.employees.insert_one(doc)
     except DuplicateKeyError:
         raise HTTPException(409, "emp_code already exists")
     return employee_out(doc)
@@ -368,7 +368,7 @@ def punch_in(body: PunchInIn):
         "history": [],
     }
     try:
-        db.attendance_logs.insert_one(doc)  # uq_emp_date makes exactly one concurrent insert win
+        db.attendance_logs.insert_one(doc)
     except DuplicateKeyError:
         raise HTTPException(409, "already punched in for this date")
     return record_out(doc)
@@ -798,7 +798,6 @@ def plan_trend(department: str, from_s: str, to_s: str) -> AggPlan:
         },
         {
             "$addFields": {
-                # rate in 1e-4 units, as an exact integer: halves / (2 * headcount) * 10^4, half-up
                 "rate4": _if(
                     {"$and": ["$is_working_day", {"$gt": ["$headcount", 0]}]},
                     half_up_int({"$multiply": ["$present_halves", 10000]}, {"$multiply": ["$headcount", 2]}),
@@ -884,7 +883,7 @@ def explain_endpoint(
         elif endpoint == "late_leaderboard":
             _need(month=month)
             plan = plan_leaderboard(month, limit, department)
-        else:  # department_trend
+        else:
             _need(department=department, **{"from": from_}, to=to)
             plan = plan_trend(department, from_, to)
         collection = plan.collection
